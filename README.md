@@ -21,5 +21,5 @@
      - Total number of registered meals
      - Total amount of meals within the diet
      - Total number of meals outside the diet
-     - Best sequence per day of meals within the diet
+     - Best sequence of meals within the diet
 - User can only view, edit and delete meals which he created
