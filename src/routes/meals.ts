@@ -5,6 +5,17 @@ import { Meal } from '../@types/meal'
 import { knex } from '../database'
 import { checkSessionIdExists } from '../middlewares/check-session-id-exists'
 
+const mealBodySchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  datetime: z.string(),
+  accordingToTheDiet: z.boolean(),
+})
+
+const mealIdParamSchema = z.object({
+  id: z.string().uuid(),
+})
+
 export async function mealsRoutes(app: FastifyInstance) {
   app.get('/', { preHandler: [checkSessionIdExists] }, async (request) => {
     const { sessionId } = request.cookies
@@ -20,11 +31,7 @@ export async function mealsRoutes(app: FastifyInstance) {
   })
 
   app.get('/:id', { preHandler: [checkSessionIdExists] }, async (request) => {
-    const getMealParamsSchema = z.object({
-      id: z.string().uuid(),
-    })
-
-    const { id } = getMealParamsSchema.parse(request.params)
+    const { id } = mealIdParamSchema.parse(request.params)
 
     const { sessionId } = request.cookies
 
@@ -38,15 +45,8 @@ export async function mealsRoutes(app: FastifyInstance) {
   })
 
   app.post('/', async (request, reply) => {
-    const createMealBodySchema = z.object({
-      title: z.string(),
-      description: z.string(),
-      datetime: z.string(),
-      accordingToTheDiet: z.boolean(),
-    })
-
     const { title, description, datetime, accordingToTheDiet } =
-      createMealBodySchema.parse(request.body)
+      mealBodySchema.parse(request.body)
 
     let sessionId = request.cookies.sessionId
 
@@ -74,4 +74,26 @@ export async function mealsRoutes(app: FastifyInstance) {
 
     return reply.status(201).send()
   })
+
+  app.put(
+    '/:id',
+    { preHandler: [checkSessionIdExists] },
+    async (request, reply) => {
+      const { title, description, datetime, accordingToTheDiet } =
+        mealBodySchema.parse(request.body)
+
+      const { id } = mealIdParamSchema.parse(request.params)
+
+      await knex('meals')
+        .where('id', id)
+        .update({
+          title,
+          description,
+          datetime: new Date(datetime),
+          according_to_the_diet: accordingToTheDiet,
+        })
+
+      return reply.status(200).send()
+    },
+  )
 }
