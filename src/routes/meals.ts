@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { Meal } from '../@types/meal'
 import { knex } from '../database'
 import { checkSessionIdExists } from '../middlewares/check-session-id-exists'
+import { getTheBestSequenceOfMealsOnTheDiet } from '../utils/getTheBestSequenceOfMealsOnTheDiet'
 
 const mealBodySchema = z.object({
   title: z.string(),
@@ -52,6 +53,34 @@ export async function mealsRoutes(app: FastifyInstance) {
       return {
         meal,
       }
+    },
+  )
+
+  app.get(
+    '/summary',
+    { preHandler: [checkSessionIdExists] },
+    async (request, reply) => {
+      const meals = await knex('meals').select('*').orderBy('datetime')
+
+      const mealsInBooleanFormat = meals.map((meal) => {
+        return meal.according_to_the_diet
+      })
+
+      const mealsOnTheDiet = mealsInBooleanFormat.filter((booleanValue) => {
+        return booleanValue
+      })
+
+      const bestSequenceOfMeals =
+        getTheBestSequenceOfMealsOnTheDiet(mealsInBooleanFormat)
+
+      const metrics = {
+        amountOfMeals: meals.length,
+        numberOfMealsOnTheDiet: mealsOnTheDiet.length,
+        numberOfMealsOffTheDiet: meals.length - mealsOnTheDiet.length,
+        bestSequenceOfMeals,
+      }
+
+      return reply.status(200).send(metrics)
     },
   )
 
