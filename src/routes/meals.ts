@@ -30,19 +30,30 @@ export async function mealsRoutes(app: FastifyInstance) {
     }
   })
 
-  app.get('/:id', { preHandler: [checkSessionIdExists] }, async (request) => {
-    const { id } = mealIdParamSchema.parse(request.params)
+  app.get(
+    '/:id',
+    { preHandler: [checkSessionIdExists] },
+    async (request, reply) => {
+      const { id } = mealIdParamSchema.parse(request.params)
 
-    const { sessionId } = request.cookies
+      const { sessionId } = request.cookies
 
-    const meal = await knex('meals')
-      .select()
-      .where({ id, session_id: sessionId })
+      const meal = await knex('meals')
+        .select()
+        .where({ id, session_id: sessionId })
 
-    return {
-      meal,
-    }
-  })
+      if (meal.length === 0) {
+        return reply.status(404).send({
+          error: 'Resource not found',
+          message: 'The resource you want to access does not exist',
+        })
+      }
+
+      return {
+        meal,
+      }
+    },
+  )
 
   app.post('/', async (request, reply) => {
     const { title, description, datetime, accordingToTheDiet } =
@@ -84,8 +95,10 @@ export async function mealsRoutes(app: FastifyInstance) {
 
       const { id } = mealIdParamSchema.parse(request.params)
 
-      await knex('meals')
-        .where('id', id)
+      const { sessionId } = request.cookies
+
+      const updateMealQuery = await knex('meals')
+        .where({ id, session_id: sessionId })
         .update({
           title,
           description,
@@ -93,7 +106,39 @@ export async function mealsRoutes(app: FastifyInstance) {
           according_to_the_diet: accordingToTheDiet,
         })
 
+      if (!updateMealQuery) {
+        return reply.status(404).send({
+          error: 'Resource not found',
+          message: 'The resource you want to edit does not exist',
+        })
+      }
+
       return reply.status(200).send()
+    },
+  )
+
+  app.delete(
+    '/:id',
+    { preHandler: [checkSessionIdExists] },
+    async (request, reply) => {
+      const { id } = mealIdParamSchema.parse(request.params)
+      const { sessionId } = request.cookies
+
+      const deleteMealQuery = await knex('meals')
+        .where({
+          id,
+          session_id: sessionId,
+        })
+        .del()
+
+      if (!deleteMealQuery) {
+        return reply.status(404).send({
+          error: 'Resource not found',
+          message: 'The resource you want to delete does not exist',
+        })
+      }
+
+      return reply.status(204).send()
     },
   )
 }
